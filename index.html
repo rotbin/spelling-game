@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>משחק איות לילדים (תמונות קלות + רמזים)</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root{
+      --bg1:#0f172a; --bg2:#111827; --card:#0b1224cc; --text:#e5e7eb; --muted:#9ca3af;
+      --accent:#22c55e; --danger:#ef4444; --warn:#facc15; --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius: 22px; --gap: 14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+      background: radial-gradient(1200px 900px at 70% 10%, #1d4ed8 0%, transparent 55%),
+                  radial-gradient(900px 900px at 20% 30%, #9333ea 0%, transparent 50%),
+                  linear-gradient(180deg, var(--bg1), var(--bg2));
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding: 18px 14px 22px;
+    }
+    .app{ width:min(760px, 100%); display:flex; flex-direction:column; gap: var(--gap); }
+
+    header{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding: 10px 6px 0; }
+    .title{ display:flex; flex-direction:column; gap:6px; }
+    .title h1{ margin:0; font-size: 18px; letter-spacing:.2px; }
+    .title small{ color:var(--muted); font-size: 12px; }
+    .modeRow{ display:flex; gap:8px; flex-wrap:wrap; }
+
+    .pill{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(17,24,39,.55);
+      color: var(--text);
+      padding: 9px 11px;
+      border-radius: 999px;
+      box-shadow: 0 6px 16px rgba(0,0,0,.22);
+      cursor:pointer;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:800;
+      font-size: 12px;
+      white-space:nowrap;
+    }
+    .pill:active{ transform: translateY(1px); }
+    .pill .dot{ width:10px;height:10px;border-radius:999px;background:var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+    .pill.on .dot{ background:var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,.15); }
+
+    .chip{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(17,24,39,.45);
+      color: rgba(255,255,255,.9);
+      padding: 9px 12px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-weight:900;
+      font-size: 12px;
+      user-select:none;
+    }
+    .chip.active{
+      background: rgba(34,197,94,.18);
+      border-color: rgba(34,197,94,.35);
+    }
+
+    .card{
+      background: var(--card);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      overflow:hidden;
+    }
+
+    .imageWrap{
+      position:relative;
+      border-radius: 18px;
+      overflow:hidden;
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
+      aspect-ratio: 4 / 3;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    img#itemImage{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      transform: scale(1.6);
+      transition: transform 420ms ease, filter 220ms ease, opacity 200ms ease;
+      filter: saturate(1.08) contrast(1.05);
+      opacity: 0.001;
+    }
+    .imgReady img#itemImage{ opacity: 1; }
+    .revealed img#itemImage{ transform: scale(1.0); }
+
+    /* LOADER */
+    .loaderOverlay{
+      position:absolute;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.28);
+      backdrop-filter: blur(2px);
+      z-index: 5;
+    }
+    .loaderOverlay.on{ display:flex; }
+    .spinner{
+      width: 44px; height: 44px;
+      border-radius: 999px;
+      border: 4px solid rgba(255,255,255,.18);
+      border-top-color: rgba(255,255,255,.88);
+      animation: spin 1s linear infinite;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+    }
+    .loadingText{
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,.85);
+      text-align:center;
+      font-weight:1000;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .overlayTag{
+      position:absolute;
+      inset: auto 12px 12px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      pointer-events:none;
+      flex-wrap:wrap;
+      z-index: 6;
+    }
+    .badge{
+      background: rgba(0,0,0,.38);
+      border:1px solid rgba(255,255,255,.16);
+      backdrop-filter: blur(6px);
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: rgba(255,255,255,.9);
+      white-space:nowrap;
+    }
+
+    .message{
+      padding: 12px 14px;
+      border-radius: 18px;
+      border:1px dashed rgba(255,255,255,.18);
+      background: rgba(17,24,39,.38);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .message .left{ display:flex; flex-direction:column; gap:3px; }
+    .message .left b{ font-size: 14px; }
+    .message .left span{ font-size: 12px; color: var(--muted); }
+    .message .right{ font-size: 12px; color: rgba(255,255,255,.85); white-space:nowrap; }
+
+    .hintRow{
+      margin-top:10px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+    .hintBtn{
+      height: 44px;
+      padding: 0 14px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.92);
+      font-weight:1000;
+      cursor:pointer;
+      user-select:none;
+    }
+    .hintBtn:active{ transform: translateY(1px); }
+
+    .answerArea{ display:flex; flex-direction:column; gap:10px; }
+    .slots{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding: 8px 4px 2px; }
+    .slot{
+      width: 54px; height: 56px; border-radius: 16px;
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.14);
+      display:flex; align-items:center; justify-content:center;
+      font-size: 28px; font-weight: 1000;
+      user-select:none; cursor:pointer;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
+      transition: background .2s ease, border-color .2s ease, color .2s ease;
+    }
+    .slot.filled{ background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); }
+    .slot.correct{ background: rgba(34,197,94,.20); border-color: rgba(34,197,94,.55); }
+    .slot.present{ background: rgba(250,204,21,.18); border-color: rgba(250,204,21,.55); }
+    .slot.absent{ background: rgba(148,163,184,.10); border-color: rgba(148,163,184,.25); color: rgba(255,255,255,.78); }
+    .slot.wrong{ animation: shake .22s linear 0s 2; }
+    @keyframes shake{
+      0%{transform:translateX(0)}
+      25%{transform:translateX(4px)}
+      50%{transform:translateX(-4px)}
+      75%{transform:translateX(3px)}
+      100%{transform:translateX(0)}
+    }
+
+    .bank{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding: 8px 2px 2px; }
+    .letterBtn{
+      min-width: 56px; height: 56px; padding: 0 12px;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(31,41,55,.85), rgba(17,24,39,.85));
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      color: var(--text);
+      font-size: 24px; font-weight: 1000;
+      cursor:pointer; user-select:none;
+      position:relative;
+    }
+    .letterBtn:active{ transform: translateY(1px); }
+    .letterBtn.hint{
+      background: rgba(250,204,21,.18);
+      border-color: rgba(250,204,21,.55);
+    }
+
+    .countBubble{
+      position:absolute;
+      left:8px; top:8px;
+      width:20px; height:20px;
+      border-radius:999px;
+      background: rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.18);
+      display:flex; align-items:center; justify-content:center;
+      font-size: 12px;
+      font-weight: 1000;
+      color: rgba(255,255,255,.9);
+      pointer-events:none;
+    }
+
+    .footerRow{ display:flex; gap:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-top: 4px; }
+    .btn{
+      flex:1; min-width: 140px; height: 54px;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(17,24,39,.65);
+      color: var(--text);
+      font-weight: 1000;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.20);
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(34,197,94,.95), rgba(16,185,129,.85));
+      border-color: rgba(34,197,94,.55);
+      color: #052e16;
+    }
+    .btn.ghost{ background: rgba(255,255,255,.06); }
+
+    .startOverlay{
+      position:fixed; inset:0;
+      background: radial-gradient(1200px 900px at 70% 10%, rgba(29,78,216,.35) 0%, transparent 55%),
+                  radial-gradient(900px 900px at 20% 30%, rgba(147,51,234,.32) 0%, transparent 50%),
+                  rgba(0,0,0,.45);
+      display:flex; align-items:center; justify-content:center;
+      padding: 18px; z-index: 50;
+    }
+    .startCard{
+      width:min(620px, 100%);
+      border-radius: 26px;
+      padding: 18px;
+      background: rgba(3,7,18,.75);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow: 0 24px 60px rgba(0,0,0,.45);
+      text-align:center;
+    }
+    .startCard h2{margin:6px 0 8px;font-size:20px}
+    .startCard p{margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.45}
+    .startCard .big{ width:100%; height: 56px; border-radius: 18px; font-size: 16px; }
+
+    /* Fullscreen image modal */
+    .modal{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.75);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index: 60;
+      padding: 18px;
+    }
+    .modal.open{ display:flex; }
+    .modalBox{
+      width:min(900px, 100%);
+      background: rgba(3,7,18,.85);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 20px;
+      overflow:hidden;
+      box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+    .modalTop{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .modalTop b{ font-size: 14px; }
+    .modalTop button{
+      height: 38px;
+      padding: 0 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.9);
+      font-weight:1000;
+      cursor:pointer;
+    }
+    .modalImg{
+      width:100%;
+      display:block;
+      max-height: 80vh;
+      object-fit: contain;
+      background: rgba(0,0,0,.25);
+    }
+
+    @media (max-width: 420px){
+      .slot{ width: 48px; height: 52px; font-size: 26px; border-radius: 14px; }
+      .letterBtn{ min-width: 52px; height: 54px; border-radius: 16px; font-size: 22px; }
+      .btn{ height: 52px; }
+      .hintBtn{ height: 42px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="title">
+        <h1>משחק איות – מה בתמונה?</h1>
+        <small>גרסה קלה: תמונות לפי מילים פשוטות</small>
+
+        <div class="modeRow" aria-label="בחירת סוג תמונות">
+          <div class="chip active" data-mode="all">הכל</div>
+          <div class="chip" data-mode="living">חי</div>
+          <div class="chip" data-mode="plant">צומח</div>
+          <div class="chip" data-mode="inanimate">דומם</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div id="soundToggle" class="pill on" role="button" aria-label="הפעלת צליל">
+          <span class="dot" aria-hidden="true"></span>
+          <span>צליל</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <div id="imageBox" class="imageWrap">
+        <img id="itemImage" alt="תמונה רנדומלית" />
+        <div class="loaderOverlay" id="loader">
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div class="spinner"></div>
+            <div class="loadingText" id="loaderText">טוען תמונה…</div>
+          </div>
+        </div>
+
+        <div class="overlayTag">
+          <div class="badge" id="levelBadge">סבב 1</div>
+          <div class="badge" id="typeBadge">סוג: הכל</div>
+          <div class="badge" id="hintBadge">רמז: …</div>
+          <div class="badge" id="prefetchBadge">מכין הבא…</div>
+        </div>
+      </div>
+
+      <div class="hintRow">
+        <button class="hintBtn" id="hintZoomBtn">רמז: הגדל תמונה</button>
+        <button class="hintBtn" id="hintLettersBtn">רמז: אותיות</button>
+        <button class="hintBtn" id="hintGiveBtn">רמז: תן לי אות</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="message">
+        <div class="left">
+          <b id="statusTitle">בוא/י ננחש!</b>
+          <span id="statusSub">בחר/י אותיות מהמחסן ואז לחץ/י בדוק</span>
+        </div>
+        <div class="right" id="progressText">0 / 0</div>
+      </div>
+
+      <div class="answerArea" style="margin-top:12px;">
+        <div class="slots" id="slots"></div>
+        <div style="height:1px;background:rgba(255,255,255,.08);margin:6px 0 2px;"></div>
+        <div class="bank" id="bank"></div>
+
+        <div class="footerRow">
+          <button class="btn ghost" id="clearBtn">נקה</button>
+          <button class="btn primary" id="checkBtn">בדוק</button>
+          <button class="btn" id="nextBtn">לתמונה הבאה</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Full image modal -->
+  <div class="modal" id="imgModal" role="dialog" aria-modal="true">
+    <div class="modalBox">
+      <div class="modalTop">
+        <b id="modalTitle">תמונה מלאה</b>
+        <button id="modalClose">סגור</button>
+      </div>
+      <img id="modalImg" class="modalImg" alt="תמונה מלאה" />
+    </div>
+  </div>
+
+  <div class="startOverlay" id="startOverlay">
+    <div class="startCard">
+      <h2>מוכנים לשחק? 🎈</h2>
+      <p>בכל סבב בוחרים מילה קלה, ומביאים תמונה מהאינטרנט שמתאימה למילה.</p>
+      <button class="btn primary big" id="startBtn">התחל</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ====== DOM ======
+  const img = document.getElementById("itemImage");
+  const imageBox = document.getElementById("imageBox");
+  const slotsEl = document.getElementById("slots");
+  const bankEl = document.getElementById("bank");
+  const statusTitle = document.getElementById("statusTitle");
+  const statusSub = document.getElementById("statusSub");
+  const progressText = document.getElementById("progressText");
+  const levelBadge = document.getElementById("levelBadge");
+  const hintBadge = document.getElementById("hintBadge");
+  const prefetchBadge = document.getElementById("prefetchBadge");
+  const typeBadge = document.getElementById("typeBadge");
+
+  const clearBtn = document.getElementById("clearBtn");
+  const checkBtn = document.getElementById("checkBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const startOverlay = document.getElementById("startOverlay");
+  const startBtn = document.getElementById("startBtn");
+  const soundToggle = document.getElementById("soundToggle");
+  const modeChips = Array.from(document.querySelectorAll(".chip"));
+
+  const hintZoomBtn = document.getElementById("hintZoomBtn");
+  const hintLettersBtn = document.getElementById("hintLettersBtn");
+  const hintGiveBtn = document.getElementById("hintGiveBtn");
+
+  const imgModal = document.getElementById("imgModal");
+  const modalImg = document.getElementById("modalImg");
+  const modalClose = document.getElementById("modalClose");
+  const modalTitle = document.getElementById("modalTitle");
+
+  const loader = document.getElementById("loader");
+  const loaderText = document.getElementById("loaderText");
+
+  // ====== State ======
+  let round = 0;
+  let current = null;            // {he, img, kind}
+  let targetLetters = [];
+  let answer = [];
+  let bankCounts = new Map();    // letter => count
+  let solved = false;
+  let feedback = [];
+  let hintHighlighted = false;
+
+  // Prefetch state
+  let nextPromise = null;
+  let nextReady = null;
+  let prefetchInFlight = false;
+
+  // Mode: "all" | "living" | "plant" | "inanimate"
+  let mode = "all";
+
+  // ====== EASY WORDS (פשוט לילדים) ======
+  // הערה: התמונות לא נשמרות – רק המילים. התמונה תמיד מגיעה מהאינטרנט בכל סבב.
+  const EASY = {
+    living: ["כלב","חתול","דג","סוס","כבשה","תרנגול","ציפור","ארנב","פרה","דבורה"],
+    plant: ["פרח","עלה","עץ","דשא","לימון","תפוח","ענב","זית","תות","בננה"],
+    inanimate: ["כוס","ספר","כדור","מפתח","חולצה","כיסא","שולחן","טלפון","עיפרון","נר","בובה","תיק"]
+  };
+
+  // ====== Letters ======
+  const HEB_LETTERS = "אבגדהוזחטיכלמנסעפצקרשת".split("");
+
+  // ====== Helpers ======
+  function showLoader(on, text="טוען תמונה…") {
+    loaderText.textContent = text;
+    loader.classList.toggle("on", on);
+    if (on) imageBox.classList.remove("imgReady");
+  }
+  function setStatus(title, sub) { statusTitle.textContent = title; statusSub.textContent = sub; }
+  function updateProgress() {
+    const filled = answer.filter(x => x).length;
+    progressText.textContent = `${filled} / ${answer.length}`;
+  }
+  function setPrefetchBadge(state) {
+    if (state === "loading") { prefetchBadge.textContent = "מכין הבא…"; prefetchBadge.style.opacity = "0.95"; }
+    else if (state === "ready") { prefetchBadge.textContent = "הבא מוכן ✅"; prefetchBadge.style.opacity = "0.95"; }
+    else if (state === "error") { prefetchBadge.textContent = "בעיה בהבא ⚠️"; prefetchBadge.style.opacity = "0.95"; }
+    else { prefetchBadge.textContent = ""; prefetchBadge.style.opacity = "0"; }
+  }
+  function modeLabel(m) { return m==="living"?"חי":m==="plant"?"צומח":m==="inanimate"?"דומם":"הכל"; }
+  function shuffle(arr) { const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  function pickWordByMode(m) {
+    if (m === "living") return { he: EASY.living[Math.floor(Math.random()*EASY.living.length)], kind:"living" };
+    if (m === "plant") return { he: EASY.plant[Math.floor(Math.random()*EASY.plant.length)], kind:"plant" };
+    if (m === "inanimate") return { he: EASY.inanimate[Math.floor(Math.random()*EASY.inanimate.length)], kind:"inanimate" };
+    // all
+    const group = ["living","plant","inanimate"][Math.floor(Math.random()*3)];
+    return pickWordByMode(group);
+  }
+
+  // ====== Audio (two modes) ======
+  let audioCtx = null;
+  let soundOn = true;
+  let bgTimer = null;
+  let bgMode = "play"; // "play" | "load"
+  function ensureAudio() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new Ctx();
+    }
+  }
+  function playTone({ freq=440, dur=0.12, type="sine", gain=0.06, when=0 }) {
+    if (!audioCtx || !soundOn) return;
+    const t0 = audioCtx.currentTime + when;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
+  }
+  function stopBackgroundMusic() { if (bgTimer) { clearInterval(bgTimer); bgTimer = null; } }
+  function startPlayMusic() {
+    if (!audioCtx || !soundOn) return;
+    stopBackgroundMusic();
+    bgMode = "play";
+    const base = 220;
+    const scale = [1, 6/5, 3/2, 8/5, 2];
+    let step = 0;
+    bgTimer = setInterval(() => {
+      if (!soundOn || bgMode !== "play") return;
+      const s = scale[step % scale.length];
+      const f = base * s * (step % 10 === 0 ? 0.5 : 1);
+      playTone({ freq: f, dur: 0.11, type: "triangle", gain: 0.04 });
+      if (step % 8 === 0) playTone({ freq: f*2, dur: 0.08, type: "sine", gain: 0.02, when: 0.02 });
+      step++;
+    }, 260);
+  }
+  function startLoadingMusic() {
+    if (!audioCtx || !soundOn) return;
+    stopBackgroundMusic();
+    bgMode = "load";
+    let step = 0;
+    bgTimer = setInterval(() => {
+      if (!soundOn || bgMode !== "load") return;
+      const f1 = 440 + (step % 3) * 60;
+      playTone({ freq: f1, dur: 0.06, type: "square", gain: 0.03 });
+      if (step % 2 === 0) playTone({ freq: f1 * 1.25, dur: 0.05, type: "square", gain: 0.02, when: 0.07 });
+      step++;
+    }, 180);
+  }
+  function setMusicModeLoading(isLoading) {
+    if (!audioCtx || !soundOn) return;
+    if (isLoading) startLoadingMusic();
+    else startPlayMusic();
+  }
+  function playSuccessSound() {
+    if (!audioCtx || !soundOn) return;
+    playTone({ freq: 523.25, dur: 0.10, type:"sine", gain:0.08, when:0.00 });
+    playTone({ freq: 659.25, dur: 0.10, type:"sine", gain:0.08, when:0.11 });
+    playTone({ freq: 783.99, dur: 0.14, type:"sine", gain:0.09, when:0.22 });
+    playTone({ freq: 1046.5, dur: 0.18, type:"triangle", gain:0.05, when:0.28 });
+  }
+  function setSound(on) {
+    soundOn = on;
+    soundToggle.classList.toggle("on", on);
+    if (!on) stopBackgroundMusic();
+    else if (audioCtx) startPlayMusic();
+  }
+  soundToggle.addEventListener("click", () => setSound(!soundOn));
+
+  // ====== Fetch image from Wikimedia Commons that matches the word ======
+  // מחפשים קבצים (namespace 6) לפי המילה, ומוציאים URL של תמונה.
+  async function fetchCommonsImageForWord(term) {
+    const url =
+      "https://commons.wikimedia.org/w/api.php" +
+      "?action=query&format=json&origin=*" +
+      "&generator=search" +
+      "&gsrnamespace=6" +
+      "&gsrlimit=20" +
+      "&gsrsearch=" + encodeURIComponent(term) +
+      "&prop=imageinfo" +
+      "&iiprop=url" +
+      "&iiurlwidth=900";
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("commons search failed: " + res.status);
+    const data = await res.json();
+    const pages = data?.query?.pages;
+    if (!pages) throw new Error("no pages");
+
+    const list = Object.values(pages)
+      .map(p => p?.imageinfo?.[0]?.thumburl || p?.imageinfo?.[0]?.url)
+      .filter(Boolean);
+
+    if (!list.length) throw new Error("no images for term");
+
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  async function fetchItemEasy(wantedMode) {
+    // מנסים כמה מילים/תמונות עד שמצליחים (מקסימום מוגבל, אין לולאה אינסופית)
+    for (let tries = 0; tries < 10; tries++) {
+      const picked = pickWordByMode(wantedMode);
+      try {
+        const imgUrl = await fetchCommonsImageForWord(picked.he);
+        return { he: picked.he, kind: picked.kind, img: imgUrl };
+      } catch {
+        await sleep(120 + Math.random()*220);
+      }
+    }
+    // אם ממש לא הצליח: תמונת "ריק" כדי לא להיתקע
+    return { he: "כוס", kind: "inanimate", img: svgPlaceholderDataUrl() };
+  }
+
+  function svgPlaceholderDataUrl() {
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700">
+        <defs>
+          <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#1d4ed8"/>
+            <stop offset="1" stop-color="#9333ea"/>
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#g)"/>
+        <text x="50%" y="46%" text-anchor="middle" font-size="44" fill="rgba(255,255,255,.92)" font-family="Arial">אין תמונה כרגע</text>
+        <text x="50%" y="56%" text-anchor="middle" font-size="28" fill="rgba(255,255,255,.80)" font-family="Arial">לחצו “לתמונה הבאה”</text>
+      </svg>`;
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
+  // ====== Wordle feedback ======
+  function computeFeedback(guessLetters, targetLettersArr) {
+    const n = targetLettersArr.length;
+    const result = new Array(n).fill("absent");
+    const remaining = new Map();
+
+    for (let i = 0; i < n; i++) {
+      if (guessLetters[i] === targetLettersArr[i]) result[i] = "correct";
+      else remaining.set(targetLettersArr[i], (remaining.get(targetLettersArr[i]) || 0) + 1);
+    }
+    for (let i = 0; i < n; i++) {
+      if (result[i] === "correct") continue;
+      const g = guessLetters[i];
+      const cnt = remaining.get(g) || 0;
+      if (cnt > 0) { result[i] = "present"; remaining.set(g, cnt - 1); }
+    }
+    return result;
+  }
+
+  // ====== Bank with counts ======
+  function buildBankCounts(wordLetters) {
+    const counts = new Map();
+    for (const ch of wordLetters) counts.set(ch, (counts.get(ch) || 0) + 1);
+
+    const maxButtons = 10;
+    const existingTypes = counts.size;
+    const wantExtraTypes = Math.max(0, Math.min(maxButtons - existingTypes, 4 + Math.floor(Math.random()*3)));
+    let added = 0;
+    while (added < wantExtraTypes) {
+      const l = HEB_LETTERS[Math.floor(Math.random() * HEB_LETTERS.length)];
+      if (counts.has(l)) continue;
+      counts.set(l, 1);
+      added++;
+    }
+    return counts;
+  }
+
+  // ====== Prefetch ======
+  function startPrefetchIfNeeded() {
+    if (prefetchInFlight || nextReady) {
+      if (nextReady) setPrefetchBadge("ready");
+      return;
+    }
+    prefetchInFlight = true;
+    setPrefetchBadge("loading");
+
+    nextPromise = (async () => {
+      const item = await fetchItemEasy(mode);
+      // warm image
+      const im = new Image();
+      im.referrerPolicy = "no-referrer";
+      im.src = item.img;
+      return item;
+    })();
+
+    nextPromise.then(item => {
+      nextReady = item;
+      setPrefetchBadge("ready");
+    }).catch(() => {
+      setPrefetchBadge("error");
+    }).finally(() => {
+      prefetchInFlight = false;
+    });
+  }
+
+  async function consumePrefetchedOrFetch() {
+    if (nextReady) {
+      const item = nextReady;
+      nextReady = null;
+      nextPromise = null;
+      setPrefetchBadge("loading");
+      return item;
+    }
+    if (nextPromise) {
+      const item = await nextPromise;
+      nextPromise = null;
+      nextReady = null;
+      return item;
+    }
+    setPrefetchBadge("loading");
+    return await fetchItemEasy(mode);
+  }
+
+  // ====== Rendering ======
+  function renderSlots() {
+    slotsEl.innerHTML = "";
+    answer.forEach((ch, idx) => {
+      const div = document.createElement("div");
+      const fb = feedback[idx] || "";
+      div.className = "slot" + (ch ? " filled" : "") + (fb ? " " + fb : "");
+      div.textContent = ch || "";
+      div.addEventListener("click", () => {
+        if (solved) return;
+        if (!answer[idx]) return;
+        const letter = answer[idx];
+        answer[idx] = "";
+        feedback[idx] = "";
+        bankCounts.set(letter, (bankCounts.get(letter) || 0) + 1);
+        renderAll();
+        setStatus("שינויים", "אפשר להמשיך ואז ללחוץ בדוק");
+      });
+      slotsEl.appendChild(div);
+    });
+    updateProgress();
+  }
+
+  function renderBank() {
+    bankEl.innerHTML = "";
+    const entries = Array.from(bankCounts.entries()).filter(([_, c]) => c > 0);
+    const shuffled = shuffle(entries);
+
+    for (const [ch, count] of shuffled) {
+      const btn = document.createElement("button");
+      btn.className = "letterBtn";
+      btn.type = "button";
+      btn.textContent = ch;
+
+      if (hintHighlighted && targetLetters.includes(ch)) btn.classList.add("hint");
+
+      if (count > 1) {
+        const bubble = document.createElement("div");
+        bubble.className = "countBubble";
+        bubble.textContent = String(count);
+        btn.appendChild(bubble);
+      }
+
+      btn.addEventListener("click", () => {
+        if (solved) return;
+        const slotIndex = answer.findIndex(x => !x);
+        if (slotIndex === -1) return;
+
+        bankCounts.set(ch, count - 1);
+        answer[slotIndex] = ch;
+        feedback[slotIndex] = "";
+        renderAll();
+      });
+
+      bankEl.appendChild(btn);
+    }
+  }
+
+  function renderAll() { renderSlots(); renderBank(); }
+
+  function markShake() {
+    const nodes = Array.from(document.querySelectorAll(".slot"));
+    nodes.forEach(n => n.classList.add("wrong"));
+    setTimeout(() => nodes.forEach(n => n.classList.remove("wrong")), 500);
+  }
+
+  function onSuccess() {
+    if (solved) return;
+    solved = true;
+    setStatus("כל הכבוד! 🎉", "הצלחת!");
+    imageBox.classList.add("revealed");
+    try {
+      confetti({ particleCount: 140, spread: 70, origin: { y: 0.7 } });
+      setTimeout(() => confetti({ particleCount: 80, spread: 55, origin: { y: 0.65 } }), 180);
+    } catch {}
+    playSuccessSound();
+    startPrefetchIfNeeded();
+  }
+
+  // ====== Image load with timeout ======
+  async function loadImageWithTimeout(url, maxWaitMs=6500) {
+    return await new Promise((resolve) => {
+      let done = false;
+      const onLoad = () => { if(done) return; done=true; cleanup(); resolve(true); };
+      const onError = () => { if(done) return; done=true; cleanup(); resolve(false); };
+      const cleanup = () => {
+        img.removeEventListener("load", onLoad);
+        img.removeEventListener("error", onError);
+      };
+      img.addEventListener("load", onLoad);
+      img.addEventListener("error", onError);
+      img.referrerPolicy = "no-referrer";
+      img.src = url;
+      setTimeout(() => { if(done) return; done=true; cleanup(); resolve(false); }, maxWaitMs);
+    });
+  }
+
+  // ====== Hints ======
+  function openModal() {
+    modalTitle.textContent = `תמונה מלאה (${modeLabel(current?.kind || mode)})`;
+    modalImg.referrerPolicy = "no-referrer";
+    modalImg.src = img.src;
+    imgModal.classList.add("open");
+  }
+  function closeModal() { imgModal.classList.remove("open"); }
+  modalClose.addEventListener("click", closeModal);
+  imgModal.addEventListener("click", (e) => { if (e.target === imgModal) closeModal(); });
+
+  hintZoomBtn.addEventListener("click", () => { if (current) openModal(); });
+
+  hintLettersBtn.addEventListener("click", () => {
+    if (!current) return;
+    hintHighlighted = !hintHighlighted;
+    renderBank();
+    setStatus("רמז אותיות", hintHighlighted ? "סימנו במחסן את האותיות שצריך (בצהוב)" : "כיבינו את הסימון");
+  });
+
+  hintGiveBtn.addEventListener("click", () => {
+    if (!current || solved) return;
+    for (let i = 0; i < targetLetters.length; i++) {
+      if (answer[i]) continue;
+      const needed = targetLetters[i];
+      const cnt = bankCounts.get(needed) || 0;
+      if (cnt > 0) {
+        bankCounts.set(needed, cnt - 1);
+        answer[i] = needed;
+        feedback[i] = "";
+        renderAll();
+        setStatus("רמז: קיבלת אות!", "שמנו אות אחת במקום הנכון 🙂");
+        return;
+      }
+    }
+    setStatus("רמז: אי אפשר כרגע", "אפשר להחזיר אותיות מהתשובה למחסן בלחיצה על משבצת.");
+  });
+
+  // ====== Buttons ======
+  checkBtn.addEventListener("click", () => {
+    if (solved) return;
+    const guess = answer.join("");
+    if (guess.length < targetLetters.length) {
+      setStatus("עוד קצת 🙂", "מלא/י את כל האותיות ואז נבדוק!");
+      markShake();
+      return;
+    }
+    feedback = computeFeedback(answer.slice(), targetLetters.slice());
+    renderSlots();
+    if (guess === current.he) onSuccess();
+    else setStatus("כמעט! 😄", "ירוק = במקום הנכון, צהוב = אות נכונה במקום אחר");
+  });
+
+  clearBtn.addEventListener("click", () => {
+    if (solved) return;
+    for (let i = 0; i < answer.length; i++) {
+      if (!answer[i]) continue;
+      const ch = answer[i];
+      bankCounts.set(ch, (bankCounts.get(ch) || 0) + 1);
+      answer[i] = "";
+      feedback[i] = "";
+    }
+    renderAll();
+    setStatus("ניקינו!", "בוא/י ננסה שוב 🙂");
+  });
+
+  nextBtn.addEventListener("click", () => newRound()); // דילוג תמיד עובד
+
+  // ====== Mode selection ======
+  modeChips.forEach(ch => {
+    ch.addEventListener("click", async () => {
+      const m = ch.getAttribute("data-mode");
+      if (!m || m === mode) return;
+      mode = m;
+      modeChips.forEach(x => x.classList.toggle("active", x === ch));
+      typeBadge.textContent = `סוג: ${modeLabel(mode)}`;
+
+      // reset prefetch
+      nextReady = null;
+      nextPromise = null;
+      prefetchInFlight = false;
+      setPrefetchBadge("loading");
+
+      await newRound();
+    });
+  });
+
+  // ====== Round flow ======
+  async function newRound() {
+    solved = false;
+    hintHighlighted = false;
+    imageBox.classList.remove("revealed");
+
+    round += 1;
+    levelBadge.textContent = `סבב ${round}`;
+    typeBadge.textContent = `סוג: ${modeLabel(mode)}`;
+    hintBadge.textContent = "רמז: …";
+    setStatus("טוען…", "רגע קטן 🙂");
+
+    showLoader(true, "טוען תמונה…");
+    setMusicModeLoading(true);
+
+    const item = await consumePrefetchedOrFetch();
+    current = item;
+
+    targetLetters = current.he.split("");
+    answer = new Array(targetLetters.length).fill("");
+    feedback = new Array(targetLetters.length).fill("");
+    bankCounts = buildBankCounts(targetLetters);
+
+    hintBadge.textContent = `רמז: ${targetLetters.length} אותיות`;
+    typeBadge.textContent = `סוג: ${modeLabel(current.kind)}`;
+
+    // load image, if fail: try another image for the same word a few times
+    let ok = false;
+    for (let tries = 0; tries < 4; tries++) {
+      ok = await loadImageWithTimeout(current.img, 6500);
+      if (ok) break;
+      try {
+        current.img = await fetchCommonsImageForWord(current.he);
+      } catch {
+        await sleep(120);
+      }
+    }
+
+    showLoader(false);
+    imageBox.classList.add("imgReady");
+    setMusicModeLoading(false);
+
+    if (!ok) {
+      img.src = svgPlaceholderDataUrl();
+      setStatus("לא הצלחתי לטעון תמונה", "לחץ/י “לתמונה הבאה” כדי לדלג");
+    } else {
+      setStatus("בוא/י ננחש!", "בחר/י אותיות מהמחסן ואז לחץ/י בדוק");
+    }
+
+    renderAll();
+    startPrefetchIfNeeded();
+  }
+
+  // ====== Start ======
+  startBtn.addEventListener("click", async () => {
+    startOverlay.style.display = "none";
+    ensureAudio();
+    try { await audioCtx.resume(); } catch {}
+    if (soundOn) startPlayMusic();
+    setPrefetchBadge("loading");
+    startPrefetchIfNeeded();
+    newRound();
+  });
+
+  setPrefetchBadge("idle");
+})();
+</script>
+</body>
+</html>
